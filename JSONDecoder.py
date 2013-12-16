@@ -2,6 +2,7 @@
 # Copyright : Michal Melewski <michal.melewski@gmail.com>
 
 # Small content-type fix: Nicolas Gregoire
+# Force JSON fix: Marcin 'Icewall' Noga
 
 import json
 
@@ -9,19 +10,45 @@ from burp import IBurpExtender
 from burp import IMessageEditorTabFactory
 from burp import IMessageEditorTab
 from burp import IParameter
+from burp import IContextMenuFactory
 
-class BurpExtender(IBurpExtender, IMessageEditorTabFactory):
+# Java imports
+from javax.swing import JMenuItem
+from java.util import List, ArrayList
+
+# Menu items
+menuItems = {
+  False: "Turn JSON active detection on",
+  True:  "Turn JSON active detection off"
+}
+
+# Global Switch
+_forceJSON = False
+
+class BurpExtender(IBurpExtender, IMessageEditorTabFactory, IContextMenuFactory):
   def registerExtenderCallbacks(self, callbacks):
     self._callbacks = callbacks
     self._helpers = callbacks.getHelpers()
 
     callbacks.setExtensionName('JSON Decoder')
     callbacks.registerMessageEditorTabFactory(self)
+    callbacks.registerContextMenuFactory(self)
     
     return
   
   def createNewInstance(self, controller, editable): 
     return JSONDecoderTab(self, controller, editable)
+
+  def createMenuItems(self, IContextMenuInvocation):
+    global _forceJSON
+    menuItemList = ArrayList()
+    menuItemList.add(JMenuItem(menuItems[_forceJSON], actionPerformed = self.onClick))
+
+    return menuItemList
+
+  def onClick(self, event):
+    global _forceJSON
+    _forceJSON = not _forceJSON
     
 class JSONDecoderTab(IMessageEditorTab):
   def __init__(self, extender, controller, editable):
@@ -31,6 +58,8 @@ class JSONDecoderTab(IMessageEditorTab):
     
     self._txtInput = extender._callbacks.createTextEditor()
     self._txtInput.setEditable(editable)
+
+    self._jsonMagicMark = ['{"', '["', '[{']
     
     return
     
@@ -40,11 +69,19 @@ class JSONDecoderTab(IMessageEditorTab):
   def getUiComponent(self):
     return self._txtInput.getComponent()
     
-  def isEnabled(self, content, isRequest):  
+  def isEnabled(self, content, isRequest):
+    global _forceJSON
+
     if isRequest:
       r = self._helpers.analyzeRequest(content)
     else:
       r = self._helpers.analyzeResponse(content)
+
+    msg = content[r.getBodyOffset():].tostring()
+
+    if _forceJSON and len(msg) > 2 and msg[:2] in self._jsonMagicMark:
+      print "Forcing JSON parsing and magic mark found: %s"%msg[:2]
+      return True
       
     for header in r.getHeaders():
       if header.lower().startswith("content-type:"):
