@@ -105,13 +105,11 @@ class JSONDecoderTab(IMessageEditorTab):
       
       msg = content[r.getBodyOffset():].tostring()
 
-      print msg
-
-      garbage = msg[:msg.find("{")] + "\n"
+      garbage = msg[:msg.find("{")]
       clean = msg[msg.find("{"):]
 
       try:
-        pretty_msg = garbage + json.dumps(json.loads(clean), indent=4)
+        pretty_msg = garbage + "\n" + json.dumps(json.loads(clean), indent=4)
       except:
         print "problem parsing data in setMessage"
         pretty_msg = garbage + clean
