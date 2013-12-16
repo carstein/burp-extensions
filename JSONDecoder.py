@@ -109,7 +109,7 @@ class JSONDecoderTab(IMessageEditorTab):
       clean = msg[msg.find("{"):]
 
       try:
-        pretty_msg = garbage + "\n" + json.dumps(json.loads(clean), indent=4)
+        pretty_msg = garbage + json.dumps(json.loads(clean), indent=4)
       except:
         print "problem parsing data in setMessage"
         pretty_msg = garbage + clean
