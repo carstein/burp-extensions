@@ -131,7 +131,7 @@ class JSONDecoderTab(IMessageEditorTab):
   def getMessage(self): 
     if self._txtInput.isTextModified():
       try:
-        pre_data = self._txtInput.getText()
+        pre_data = self._txtInput.getText().tostring()
 
         boundary = min(pre_data.index('{'), pre_data.index('['))
 
