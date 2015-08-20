@@ -64,11 +64,12 @@ class ArgonautTab(IMessageEditorTab):
     if isRequest:
       return False
     else:
-      try: #stupid bug, during initialization isEnable is called without context
-        req = self._helpers.analyzeRequest(self._controller.getRequest())
-      except:
-        self.extender._callbacks.issueAlert('isEnabled called without proper context')
+      raw_req = self._controller.getRequest()
 
+      if not raw_req:
+        return False
+
+    req = self._helpers.analyzeRequest(raw_req)
     params =  req.getParameters()
 
     if params.isEmpty():
