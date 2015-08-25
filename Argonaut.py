@@ -4,8 +4,12 @@
 # Process all request parameters
 # and try to find if they are echoed back in response
 
+# Version 0.3
+# Parsing moved to separate class
+
 # Version 0.2
 # Small fix due to NullPointerException
+
 
 from burp import IBurpExtender
 from burp import IMessageEditorTabFactory
@@ -22,7 +26,18 @@ import re
 
 # Consts
 MIN_PARAM_LEN = 3
-SNIPPET_SIZE = 80
+
+## Transformations tables
+TRANSFORMATIONS = [
+    { "name": "plain", "table": []},
+    { "name": "jinja", "table": [
+      ('&', '&amp;'),
+      ('<', '&lt;'),
+      ('>', '&gt;'),
+      ('"', '&#34;'),
+      ('\'', '&#39;')]
+    },
+  ]
 
 
 class BurpExtender(IBurpExtender, IMessageEditorTabFactory):
@@ -48,6 +63,10 @@ class ArgonautTab(IMessageEditorTab):
     # Data container
     self._dataContainer = ArgonautData()
 
+    # Argonaut Parser
+    self._argoParser = ArgonautParser(self._dataContainer)
+
+    # Burp View (table)
     self._argoTable = ArgonautTable(self._dataContainer)
     self._tablePane = JScrollPane(self._argoTable)
 
@@ -82,7 +101,6 @@ class ArgonautTab(IMessageEditorTab):
       return
 
     # Extract params from pair 
-    # TODO: extract depending on request type
     req = self._helpers.analyzeRequest(self._controller.getRequest())
     params =  req.getParameters()
 
@@ -92,7 +110,7 @@ class ArgonautTab(IMessageEditorTab):
 
     # Parse
     self._dataContainer.reset()
-    self.argoParse(self._dataContainer, params, body)
+    self._argoParser.parse(params, body)
     self._dataContainer.fireTableDataChanged()
 
     return
@@ -100,26 +118,73 @@ class ArgonautTab(IMessageEditorTab):
   def isModified(self):
     return False
 
-  def argoParse(self, container, params, body):
+
+## ArgonautParser
+class ArgonautParser:
+  def __init__(self, dataContainer):
+    self.container = dataContainer
+
+    # Transformers to the rescue
+    self.prime = Optimus()
+    self.prime.set_transformations(TRANSFORMATIONS)
+
+  def parse(self, params, body):
     for param in params:
+      # TODO: Add different extraction depending on param type
+      # TODO: urldecode?
       paramValue = param.getValue()
+      print "Working with paramValue: ",paramValue
 
       # Param testing
       if len(paramValue) < MIN_PARAM_LEN: continue
 
-      # Search body (TODO: add transformations)
-      indexes = [(a.start(), a.end()) for a in list(re.finditer(paramValue, body))]
+      # Search body
+      for name, trns in self.prime.transform(paramValue):
+        print "%s: %s"%(name, trns)
 
-      # Extract
-      if indexes:
-        for start, end in indexes:
-          # TODO: more intelligent snippet
-          snippet = body[max(0,start-30):min(end+30, len(body))]
+        indexes = [x for x in list(self.find_all(paramValue, body))]
+        print "Body: ",body
+        print "Hits: ",indexes
+
+        # Extract snippet
+        if indexes:
+          for start, end in indexes:
+            # TODO: more intelligent snippet
+            snippet = body[max(0,start-30):min(end+30, len(body))]
+
+            self.container.insertRow(paramValue, name, snippet)
+
+          break
+
+  @staticmethod
+  def find_all(sub, string):
+    l = len(sub)
+    start = 0
+    while True:
+        start = string.find(sub, start)
+        if start == -1: return
+        yield (start, start+l)
+        start += len(sub)
 
 
-          container.insertRow(paramValue, 'plain', snippet)
+## Transformers class
+class Optimus:
+  def __init__(self):
+    self.transformations = []
+
+  def set_transformations(self, t):
+    self.transformations = t
+
+  def transform(self, target):
+    if target:
+      for t in self.transformations:
+        yield t['name'], self._translate(target, t["table"])
+
+  def _translate(self, string, transformation):
+    return reduce(lambda a, kv: a.replace(*kv), transformation, string)
 
 
+## Classes related to UITable
 class ArgonautTable(JTable):
   def __init__(self, dataModel):
     self.setModel(dataModel)
