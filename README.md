@@ -16,7 +16,7 @@ Quite simply just a JSON pretty printer with some additional features.
 * Ability to remove json garbage (like }]);) - it does a bit of guessing, so not always reliable
 * Ability to force JSON decoding on atypical content-type (by default decodes only application/json and text/javascript)
 
-### Argonaut (0.1)
+### Argonaut (0.4)
 Extension process all request parameters and try to find if they are echoed back in response. Key feature is transformation support so, will also recognize if for example > is translated to &amp;gt;. Transformations/escaping currently implemented:
 * Plain (no escaping)
 * Jinja2 template
