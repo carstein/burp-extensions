@@ -4,6 +4,9 @@
 # Process all request parameters
 # and try to find if they are echoed back in response
 
+# Version 0.4
+# Transformations finally working
+
 # Version 0.3
 # Parsing moved to separate class
 
@@ -11,6 +14,7 @@
 # Small fix due to NullPointerException
 
 
+# Burp imports
 from burp import IBurpExtender
 from burp import IMessageEditorTabFactory
 from burp import IMessageEditorTab
@@ -22,7 +26,7 @@ from javax.swing import JScrollPane
 from javax.swing.table import AbstractTableModel
 
 # Python imports
-import re
+from urllib import unquote
 
 # Consts
 MIN_PARAM_LEN = 3
@@ -131,20 +135,14 @@ class ArgonautParser:
   def parse(self, params, body):
     for param in params:
       # TODO: Add different extraction depending on param type
-      # TODO: urldecode?
-      paramValue = param.getValue()
-      print "Working with paramValue: ",paramValue
+      paramValue = unquote(param.getValue())
 
       # Param testing
       if len(paramValue) < MIN_PARAM_LEN: continue
 
       # Search body
       for name, trns in self.prime.transform(paramValue):
-        print "%s: %s"%(name, trns)
-
         indexes = [x for x in list(self.find_all(trns, body))]
-        print "Body: ",body
-        print "Hits: ",indexes
 
         # Extract snippet
         if indexes:
@@ -164,7 +162,7 @@ class ArgonautParser:
         start = string.find(sub, start)
         if start == -1: return
         yield (start, start+l)
-        start += len(sub)
+        start += l
 
 
 ## Transformers class
@@ -185,6 +183,7 @@ class Optimus:
 
 
 ## Classes related to UITable
+# TODO: need serious UI work
 class ArgonautTable(JTable):
   def __init__(self, dataModel):
     self.setModel(dataModel)
