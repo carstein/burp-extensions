@@ -142,7 +142,7 @@ class ArgonautParser:
       for name, trns in self.prime.transform(paramValue):
         print "%s: %s"%(name, trns)
 
-        indexes = [x for x in list(self.find_all(paramValue, body))]
+        indexes = [x for x in list(self.find_all(trns, body))]
         print "Body: ",body
         print "Hits: ",indexes
 
