@@ -22,6 +22,13 @@ menuItems = {
   True:  "Turn JSON active detection off"
 }
 
+# Content types
+supportedContentTypes = [
+    "application/json",
+    "text/json",
+    "text/x-json",
+]
+
 # Global Switch
 _forceJSON = False
 
@@ -33,9 +40,9 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, IContextMenuFactory)
     callbacks.setExtensionName('JSON Decoder')
     callbacks.registerMessageEditorTabFactory(self)
     callbacks.registerContextMenuFactory(self)
-    
+
     return
-  
+
   def createNewInstance(self, controller, editable): 
     return JSONDecoderTab(self, controller, editable)
 
@@ -49,26 +56,26 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, IContextMenuFactory)
   def onClick(self, event):
     global _forceJSON
     _forceJSON = not _forceJSON
-    
+
 class JSONDecoderTab(IMessageEditorTab):
   def __init__(self, extender, controller, editable):
     self._extender = extender
     self._helpers = extender._helpers
     self._editable = editable
-    
+
     self._txtInput = extender._callbacks.createTextEditor()
     self._txtInput.setEditable(editable)
 
     self._jsonMagicMark = ['{"', '["', '[{']
-    
+
     return
-    
+
   def getTabCaption(self):
     return "JSON Decoder"
-    
+
   def getUiComponent(self):
     return self._txtInput.getComponent()
-    
+
   def isEnabled(self, content, isRequest):
     global _forceJSON
 
@@ -82,17 +89,17 @@ class JSONDecoderTab(IMessageEditorTab):
     if _forceJSON and len(msg) > 2 and msg[:2] in self._jsonMagicMark:
       print "Forcing JSON parsing and magic mark found: %s"%msg[:2]
       return True
-      
+
     for header in r.getHeaders():
       if header.lower().startswith("content-type:"):
         content_type = header.split(":")[1].lower()
-        if content_type.find("application/json") > 0 or content_type.find("text/javascript") > 0:
-          return True
-        else:
-          return False
+
+        for allowedType in supportedContentTypes:
+          if content_type.find(allowedType) > 0:
+           return True
 
     return False
-    
+
   def setMessage(self, content, isRequest):
     if content is None:
       self._txtInput.setText(None)
@@ -102,7 +109,7 @@ class JSONDecoderTab(IMessageEditorTab):
         r = self._helpers.analyzeRequest(content)
       else:
         r = self._helpers.analyzeResponse(content)
-      
+
       msg = content[r.getBodyOffset():].tostring()
 
       # find garbage index
@@ -124,10 +131,10 @@ class JSONDecoderTab(IMessageEditorTab):
 
       self._txtInput.setText(pretty_msg)
       self._txtInput.setEditable(self._editable)
-      
+
     self._currentMessage = content
     return
-    
+
   def getMessage(self): 
     if self._txtInput.isTextModified():
       try:
@@ -140,16 +147,16 @@ class JSONDecoderTab(IMessageEditorTab):
         data = garbage + json.dumps(json.loads(clean))
       except:
         data = self._helpers.bytesToString(self._txtInput.getText())
-        
+
       # Reconstruct request/response
       r = self._helpers.analyzeRequest(self._currentMessage)
-        
+
       return self._helpers.buildHttpMessage(r.getHeaders(), self._helpers.stringToBytes(data))
     else:
       return self._currentMessage
-    
+
   def isModified(self):
     return self._txtInput.isTextModified()
-    
+
   def getSelectedData(self):
     return self._txtInput.getSelectedText()
