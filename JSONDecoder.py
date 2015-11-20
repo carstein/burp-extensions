@@ -115,7 +115,10 @@ class JSONDecoderTab(IMessageEditorTab):
       # find garbage index
       # I know, this is not bulletproof, but we have to try
       try:
-        boundary = min(msg.index('{'), msg.index('['))
+        boundary = min(
+                        msg.index('{') if '{' in msg else len(msg),
+                        msg.index('[') if '[' in msg else len(msg)
+                      )
       except ValueError:
         print('Sure this is JSON?')
         return
